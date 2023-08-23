@@ -2,8 +2,8 @@ POST http://localhost:3003/api/blogs
 Content-Type: application/json
 
 {
-"title": "Type wars",
-"author": "Robert C. Martin",
-"url": "http://blog.cleancoder.com/uncle-bob/2016/05/01/TypeWars.html",
-"likes": 2
+"title": "High-Profile Company Data Breaches 2023",
+"author": "Jessica Farrelly",
+"url": "https://www.electric.ai/blog/recent-big-company-data-breaches",
+"likes": 1
 }
