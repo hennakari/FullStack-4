@@ -152,3 +152,39 @@ describe('favorite blog', () => {
 
 })
 
+describe('most blogs', () => {
+
+  test('author with most blogs when list has several blogs', () => {
+    const result = listHelper.mostBlogs(listWithSeveralBlogs)
+    const expected = {
+      author: 'Robert C. Martin',
+      blogs: 3
+    }
+    expect(result).toEqual(expected)
+  })
+
+  test('author with most blogs when list is empty', () => {
+    const result = listHelper.mostBlogs(emptyList)
+    expect(result).toBe(0)
+  })
+
+  test('author with most blogs when list has only one blog', () => {
+    const result = listHelper.mostBlogs(listWithOneBlog)
+    const expected = {
+      author: 'Edsger W. Dijkstra',
+      blogs: 1
+    }
+    expect(result).toEqual(expected)
+  })
+
+  test('author with most blogs when list has two blogs from different bloggers', () => {
+    const result = listHelper.mostBlogs(listWithTwoBlogs)
+    const expected = {
+      author: 'Edsger W. Dijkstra',
+      blogs: 1
+    }
+    expect(result).toEqual(expected)
+  })
+
+})
+
