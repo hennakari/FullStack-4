@@ -50,10 +50,33 @@ const mostBlogs = (blogs) => {
   }
 }
 
+const mostLikes = (blogs) => {
+  if (blogs.length === 0) {
+    return 0
+  } else {
+    let authorsAndLikes = {}
+    for (let j = 0; j < blogs.length; j++) {
+      if (blogs[j].author in authorsAndLikes) {
+        authorsAndLikes[blogs[j].author] = authorsAndLikes[blogs[j].author] + blogs[j].likes
+      } else {
+        authorsAndLikes[blogs[j].author] = blogs[j].likes
+      }
+    }
+
+    let authorWithMostLikes = Object.keys(authorsAndLikes).reduce((a, b) => authorsAndLikes[a] > authorsAndLikes[b] ? a : b)
+
+    let result = {}
+    result.author = authorWithMostLikes
+    result.likes = authorsAndLikes[authorWithMostLikes]
+    return result
+  }
+}
+
 
 module.exports = {
   dummy,
   totalLikes,
   favoriteBlog,
-  mostBlogs
+  mostBlogs,
+  mostLikes
 }
