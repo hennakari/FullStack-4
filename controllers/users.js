@@ -12,18 +12,27 @@ usersRouter.get('/', async (request, response) => {
 usersRouter.post('/', async (request, response) => {
   const { username, name, password } = request.body
 
-  const saltRounds = 10
-  const passwordHash = await bcrypt.hash(password, saltRounds)
+  if (password) {
+    if (password.length < 3) {
+      console.log('password needs to be longer than 3 characters')
+      response.status(406).send({ error: 'password needs to be longer than 3 characters' })
+    } else {
+      const saltRounds = 10
+      const passwordHash = await bcrypt.hash(password, saltRounds)
 
-  const user = new User({
-    username,
-    name,
-    passwordHash,
-  })
+      const user = new User({
+        username,
+        name,
+        passwordHash,
+      })
 
-  const savedUser = await user.save()
+      const savedUser = await user.save()
 
-  response.status(201).json(savedUser)
+      response.status(201).json(savedUser)
+    }
+  } else {
+    response.status(400).send({ error: 'User validation failed: password: Path `password` is required.' })
+  }
 })
 
 module.exports = usersRouter

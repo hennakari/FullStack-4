@@ -9,11 +9,6 @@ const User = require('../models/user')
 const api = supertest(app)
 
 
-beforeEach(async () => {
-  await Blog.deleteMany({})
-  await Blog.insertMany(helper.initialBlogs)
-})
-
 describe('when there is initially one user at db', () => {
   beforeEach(async () => {
     await User.deleteMany({})
@@ -24,6 +19,32 @@ describe('when there is initially one user at db', () => {
     await user.save()
   })
 
+  test('users are returned as json', async () => {
+    await api
+      .get('/api/users')
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+  })
+
+  test('all users are returned', async () => {
+    const response = await api.get('/api/users')
+
+    expect(response.body).toHaveLength(1)
+  })
+
+  test('a specific user is within the returned blogs', async () => {
+    const response = await api.get('/api/users')
+
+    const usernames = response.body.map(r => r.username)
+
+    expect(usernames).toContain(
+      'root'
+    )
+  })
+
+})
+
+describe('adding a new user', () => {
   test('creation succeeds with a fresh username', async () => {
     const usersAtStart = await helper.usersInDb()
 
@@ -66,9 +87,100 @@ describe('when there is initially one user at db', () => {
     const usersAtEnd = await helper.usersInDb()
     expect(usersAtEnd).toHaveLength(usersAtStart.length)
   })
+
+  test('creation fails if username is too short', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'hk',
+      name: 'Henna Kari',
+      password: 'salasana',
+    }
+
+    const result = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    expect(result.body.error).toContain('is shorter than the minimum allowed length (3)')
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length)
+
+  })
+
+  test('creation fails if password is too short', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'hkari',
+      name: 'Henna Kari',
+      password: 'hk',
+    }
+
+    const result = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(406)
+      .expect('Content-Type', /application\/json/)
+
+    expect(result.body.error).toContain('password needs to be longer than 3 characters')
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length)
+
+  })
+
+  test('creation fails if username is missing', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      name: 'Henna Kari',
+      password: 'salasana',
+    }
+
+    const result = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    expect(result.body.error).toContain('username: Path `username` is required')
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length)
+
+  })
+
+  test('creation fails if password is missing', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'hkari',
+      name: 'Henna Kari',
+    }
+
+    const result = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    expect(result.body.error).toContain('password: Path `password` is required')
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length)
+
+  })
 })
 
 describe('when there are initially some blogs saved', () => {
+
+  beforeEach(async () => {
+    await Blog.deleteMany({})
+    await Blog.insertMany(helper.initialBlogs)
+  })
 
   test('blogs are returned as json', async () => {
     await api
@@ -95,6 +207,10 @@ describe('when there are initially some blogs saved', () => {
 })
 
 describe('addition of a new blog', () => {
+  beforeEach(async () => {
+    await Blog.deleteMany({})
+    await Blog.insertMany(helper.initialBlogs)
+  })
 
   test('a valid blog can be added', async () => {
     const newBlog = {
@@ -215,7 +331,11 @@ describe('viewing a specific blog', () => {
 
 })
 
-describe('deletig a blog', () => {
+describe('deleting a blog', () => {
+  beforeEach(async () => {
+    await Blog.deleteMany({})
+    await Blog.insertMany(helper.initialBlogs)
+  })
 
   test('a blog can be deleted', async () => {
     const blogsAtStart = await helper.blogsInDb()
