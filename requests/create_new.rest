@@ -2,8 +2,8 @@ POST http://localhost:3003/api/blogs
 Content-Type: application/json
 
 {
-"title": "High-Profile Company Data Breaches 2023",
-"author": "Jessica Farrelly",
-"url": "https://www.electric.ai/blog/recent-big-company-data-breaches",
+"title": "Canonical string reduction",
+"author": "Edsger W. Dijkstra",
+"url": "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
 "likes": 1
 }
