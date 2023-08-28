@@ -1,17 +1,9 @@
 const blogsRouter = require('express').Router()
-const jwt = require('jsonwebtoken')
+//const jwt = require('jsonwebtoken')
+//const userExtractor = require('../utils/middleware.userExtractor')
+const middleware = require('../utils/middleware')
 const Blog = require('../models/blog')
 const User = require('../models/user')
-
-/* const getTokenFrom = request => {
-  const authorization = request.get('authorization')
-  console.log('nyt tämä authoriz..')
-  console.log(authorization)
-  if (authorization && authorization.startsWith('bearer ')) {
-    return authorization.replace('bearer ', '')
-  }
-  return null
-} */
 
 blogsRouter.get('/', async (request, response) => {
   const blogs = await Blog
@@ -19,20 +11,9 @@ blogsRouter.get('/', async (request, response) => {
   response.json(blogs)
 })
 
-blogsRouter.post('/', async (request, response) => {
+blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
   const body = request.body
-  //const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET)
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
-  if (!decodedToken.id) {
-    return response.status(401).json({ error: 'token invalid' })
-  }
-  const user = await User.findById(decodedToken.id)
-
-  /* let user = await User.findById(body.userId)
-  if (!user) {
-    let id = '64e8a8bebdee4fdcfaa9ef6f'
-    user = await User.findById(id)
-  } */
+  const user = await User.findById(request.user)
 
   let likes = body.likes
   if (!likes) {
@@ -63,13 +44,9 @@ blogsRouter.get('/:id', async (request, response) => {
   }
 })
 
-blogsRouter.delete('/:id', async (request, response) => {
+blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
   const blog = await Blog.findById(request.params.id)
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
-  if (!decodedToken.id) {
-    return response.status(401).json({ error: 'token invalid' })
-  }
-  const user = await User.findById(decodedToken.id)
+  const user = await User.findById(request.user)
   const blogId = blog.user.toString()
 
   if (user.id === blogId) {

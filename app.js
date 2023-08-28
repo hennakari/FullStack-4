@@ -6,6 +6,7 @@ const cors = require('cors')
 
 const middleware = require('./utils/middleware')
 app.use(middleware.tokenExtractor)
+//app.use(middleware.userExtractor)
 
 const blogsRouter = require('./controllers/blogs')
 const usersRouter = require('./controllers/users')
