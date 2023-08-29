@@ -1,6 +1,4 @@
 const blogsRouter = require('express').Router()
-//const jwt = require('jsonwebtoken')
-//const userExtractor = require('../utils/middleware.userExtractor')
 const middleware = require('../utils/middleware')
 const Blog = require('../models/blog')
 const User = require('../models/user')
@@ -13,26 +11,34 @@ blogsRouter.get('/', async (request, response) => {
 
 blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
   const body = request.body
+  const token = request.token
+  if (!token) {
+    response.status(401).send({ error: 'Authorization failed, token is missing' })
+  }
   const user = await User.findById(request.user)
 
-  let likes = body.likes
-  if (!likes) {
-    likes = 0
+  if (user) {
+    let likes = body.likes
+    if (!likes) {
+      likes = 0
+    }
+
+    let blog = new Blog({
+      title: body.title,
+      author: body.author,
+      url: body.url,
+      likes: likes,
+      user: user._id
+    })
+
+    const savedBlog = await blog.save()
+    user.blogs = user.blogs.concat(savedBlog._id)
+    await user.save()
+
+    response.json(savedBlog)
+  } else {
+    response.status(401).send({ error: 'Authorization failed' })
   }
-
-  let blog = new Blog({
-    title: body.title,
-    author: body.author,
-    url: body.url,
-    likes: likes,
-    user: user._id
-  })
-
-  const savedBlog = await blog.save()
-  user.blogs = user.blogs.concat(savedBlog._id)
-  await user.save()
-
-  response.json(savedBlog)
 })
 
 blogsRouter.get('/:id', async (request, response) => {
@@ -45,19 +51,18 @@ blogsRouter.get('/:id', async (request, response) => {
 })
 
 blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
-  const blog = await Blog.findById(request.params.id)
   const user = await User.findById(request.user)
-  const blogId = blog.user.toString()
-
-  if (user.id === blogId) {
-    const deleted = await Blog.findByIdAndRemove(request.params.id)
-    if (deleted) {
+  const blog = await Blog.findById(request.params.id)
+  if (blog) {
+    const blogId = blog.user.toString()
+    if (user.id === blogId) {
+      await Blog.findByIdAndRemove(request.params.id)
       response.status(200).end()
     } else {
-      response.status(404).end()
+      response.status(401).send({ error: 'Authorization failed' })
     }
   } else {
-    response.status(401).send({ error: 'Authentication failed' })
+    response.status(404).end()
   }
 
 })

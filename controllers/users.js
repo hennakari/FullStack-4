@@ -15,7 +15,6 @@ usersRouter.post('/', async (request, response) => {
 
   if (password) {
     if (password.length < 3) {
-      console.log('password needs to be longer than 3 characters')
       response.status(406).send({ error: 'password needs to be longer than 3 characters' })
     } else {
       const saltRounds = 10

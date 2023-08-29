@@ -5,9 +5,9 @@ const app = require('../app')
 const Blog = require('../models/blog')
 const bcrypt = require('bcrypt')
 const User = require('../models/user')
+const jwt = require('jsonwebtoken')
 
 const api = supertest(app)
-
 
 describe('when there is initially one user at db', () => {
   beforeEach(async () => {
@@ -187,6 +187,7 @@ describe('when there are initially some blogs saved', () => {
       .get('/api/blogs')
       .expect(200)
       .expect('Content-Type', /application\/json/)
+
   })
 
   test('all blogs are returned', async () => {
@@ -220,10 +221,14 @@ describe('addition of a new blog', () => {
       likes: 5
     }
 
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
+
     await api
       .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
       .send(newBlog)
-      .expect(201)
+      .expect(200)
       .expect('Content-Type', /application\/json/)
 
     const blogsAtEnd = await helper.blogsInDb()
@@ -236,18 +241,41 @@ describe('addition of a new blog', () => {
     )
   })
 
-
-  test('blog without likes is added with 0 likes', async () => {
+  test('addition fails with statuscode 401 if token is missing from request', async () => {
     const newBlog = {
       title: 'Go To Statement Considered Harmful',
       author: 'Edsger W. Dijkstra',
       url: 'http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html',
+      likes: 5
     }
+
+    const token = ''
 
     await api
       .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
       .send(newBlog)
-      .expect(201)
+      .expect(401)
+    const blogsAtEnd = await helper.blogsInDb()
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length)
+  })
+
+
+  test('blog without likes is added with 0 likes', async () => {
+    const newBlog = {
+      title: 'Canonical string reduction',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html',
+    }
+
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
+
+    await api
+      .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
+      .send(newBlog)
+      .expect(200)
 
     const blogsAtEnd = await helper.blogsInDb()
 
@@ -269,8 +297,12 @@ describe('addition of a new blog', () => {
       likes: 5
     }
 
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
+
     await api
       .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
       .send(newBlog)
       .expect(400)
 
@@ -286,8 +318,12 @@ describe('addition of a new blog', () => {
       likes: 5
     }
 
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
+
     await api
       .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
       .send(newBlog)
       .expect(400)
 
@@ -305,15 +341,18 @@ describe('viewing a specific blog', () => {
 
     const blogToView = blogsAtStart[0]
 
+    let blogForTestComparison = blogToView
+    blogForTestComparison.user = blogToView.user.toString()
+
     const resultBlog = await api
       .get(`/api/blogs/${blogToView.id}`)
       .expect(200)
       .expect('Content-Type', /application\/json/)
 
-    expect(resultBlog.body).toEqual(blogToView)
+    expect(resultBlog.body).toEqual(blogForTestComparison)
   })
 
-  test('fails with statuscode 404 if id is valid but does not exist', async () => {
+  test('view fails with statuscode 404 if id is valid but does not exist', async () => {
     const validNonexistingId = '64c887fb4024679830ae3410'
 
     await api
@@ -321,7 +360,7 @@ describe('viewing a specific blog', () => {
       .expect(404)
   })
 
-  test('fails with statuscode 400 id is invalid', async () => {
+  test('view fails with statuscode 400 id is invalid', async () => {
     const invalidId = '64c887fb4024679830'
 
     await api
@@ -338,17 +377,41 @@ describe('deleting a blog', () => {
   })
 
   test('a blog can be deleted', async () => {
-    const blogsAtStart = await helper.blogsInDb()
-    const blogToDelete = blogsAtStart[0]
+
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
+    const decodedToken = jwt.verify(token, process.env.SECRET)
+
+    const newBlog = {
+      title: 'New test blog to be deleted',
+      author: 'Testing Guru',
+      url: 'http://www',
+      likes: 1,
+      user: {
+        _id: decodedToken.id,
+        username: userinfo.body.username,
+        name: userinfo.body.name
+      }
+    }
+
+    const testBlogAdded = await api
+      .post('/api/blogs')
+      .set('Authorization' ,`bearer ${token}`)
+      .send(newBlog)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const blogToDelete = testBlogAdded.body.id
 
     await api
-      .delete(`/api/blogs/${blogToDelete.id}`)
+      .delete(`/api/blogs/${blogToDelete}`)
+      .set('Authorization' ,`bearer ${token}`)
       .expect(200)
 
     const blogsAtEnd = await helper.blogsInDb()
 
     expect(blogsAtEnd).toHaveLength(
-      helper.initialBlogs.length - 1
+      helper.initialBlogs.length
     )
 
     const titles = blogsAtEnd.map(r => r.title)
@@ -356,19 +419,27 @@ describe('deleting a blog', () => {
     expect(titles).not.toContain(blogToDelete.title)
   })
 
-  test('fails with statuscode 404 if id is valid but does not exist', async () => {
+  test('delete fails with statuscode 404 if id is valid but does not exist', async () => {
     const validNonexistingId = '64c887fb4024679830ae3410'
+
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
 
     await api
       .delete(`/api/blogs/${validNonexistingId}`)
+      .set('Authorization' ,`bearer ${token}`)
       .expect(404)
   })
 
-  test('fails with statuscode 400 id is invalid', async () => {
+  test('delete fails with statuscode 400 id is invalid', async () => {
     const invalidId = '64c887fb4024679830'
+
+    const userinfo = await helper.userLogin()
+    const token = userinfo.body.token
 
     await api
       .delete(`/api/blogs/${invalidId}`)
+      .set('Authorization' ,`bearer ${token}`)
       .expect(400)
   })
 
@@ -389,13 +460,15 @@ describe('updating a blog', () => {
   test('existing blog can be updated', async () => {
     const blogsAtStart = await helper.blogsInDb()
     const firstBlogId = blogsAtStart[0].id
+    const firstBlogUser = blogsAtStart[0].user
 
     const updatedBlog = {
       id: firstBlogId,
       title: 'High-Profile Company Data Breaches 2023',
       author: 'Jessica Farrelly',
       url: 'https://www.electric.ai/blog/recent-big-company-data-breaches',
-      likes: 20
+      likes: 20,
+      user: firstBlogUser._id.toString()
     }
 
     await api
@@ -435,34 +508,32 @@ describe('updating a blog', () => {
 
   })
 
-  test('fails with statuscode 404 if id is valid but does not exist', async () => {
+  test('update fails with statuscode 404 if id is valid but does not exist', async () => {
     const validNonexistingId = '64c887fb4024679830ae3410'
 
     const updatedInfo = {
       author: 'Henna Kari',
     }
 
-    const updatedBlog = await api
+    await api
       .put(`/api/blogs/${validNonexistingId}`)
       .send(updatedInfo)
       .expect(404)
 
-    console.log(updatedBlog)
   })
 
-  test('fails with statuscode 400 id is invalid', async () => {
+  test('update fails with statuscode 400 id is invalid', async () => {
     const invalidId = '64c887fb4024679830'
 
     const updatedInfo = {
       author: 'Henna Kari',
     }
 
-    const updatedBlog = await api
+    await api
       .put(`/api/blogs/${invalidId}`)
       .send(updatedInfo)
       .expect(400)
 
-    console.log(updatedBlog)
   })
 })
 
