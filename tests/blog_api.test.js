@@ -491,7 +491,7 @@ describe('updating a blog', () => {
 
     const updatedInfo = {
       title: 'High-Profile Company Data Breaches 2024',
-      likes: 13
+      likes: 20
     }
 
     const updatedBlog = await api
